@@ -2,14 +2,29 @@ import express from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
 import dotenv from "dotenv";
+import http from 'http';
+import { Server as SocketIOServer } from 'socket.io';
+import chatPublicWhiteBoard from "./socketConnections/chatPublicWhiteBoard.js";
 
 // Carga las variables de entorno desde el archivo .env
 dotenv.config();
 
+// Crea el servidor HTTP
+const server = http.createServer();
+
+// Configura Socket.IO con el servidor HTTP
+const io = new SocketIOServer(server, {
+  pingInterval: 10000,
+  pingTimeout: 5000,
+});
+
+// Configura los eventos de Socket.IO
+chatPublicWhiteBoard(io);
+
+// Crea la aplicación Express
 const app = express();
 
 // Incluye los módulos necesarios para la autenticación
-
 app.use(cookieParser());
 app.use(
   cors({
@@ -28,7 +43,8 @@ app.use((err, req, res, next) => {
 
 const PORT = process.env.PORT || 3005;
 
-app.listen(PORT, () => {
+// Inicia el servidor HTTP
+server.listen(PORT, () => {
   console.log(`Servidor en ejecución en http://localhost:${PORT}`);
 });
 
