@@ -1,6 +1,3 @@
-
-import newHomeChat from "../controllers/homeChatController.js"
-
 export default (io) => {
     io.on('connection', (socket) => {
         try {
@@ -13,7 +10,7 @@ export default (io) => {
             socket.on('sendOwner', newHomeChat.sendOwner(socket, io));
             socket.on('ownerMode', newHomeChat.ownerMode(socket, io));
             socket.on('visitorSelect', newHomeChat.visitorSelect(socket, io))
-            socket.on('bellNotification', newHomeChat.bellNotification(socket , io));
+            socket.on('bellNotification', newHomeChat.bellNotification(socket, io));
 
             //NEW ENVENTS
             socket.on('chat:init', newHomeChat.init(socket));
@@ -24,7 +21,7 @@ export default (io) => {
             socket.on('set:cache', newHomeChat.getDataOnCache(socket, io));
             socket.on('changeColor', newHomeChat.changeColor(socket));
             socket.on('delete', newHomeChat.deleteDataToDataBase(socket, io));
-           
+
         } catch (error) {
             console.log(error)
         }
