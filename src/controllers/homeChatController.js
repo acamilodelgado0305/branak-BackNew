@@ -1,15 +1,15 @@
 import Visitor from "../models/homeChatVisitors.js";
 import Conversation from "../models/homeChatConversation.js";
 
-//init de todo el sistema de chat
+// Init de todo el sistema de chat
 export const join = (socket) => (id) => {
   socket.leaveAll();
   socket.join(id, () => {
-    console.log("conectaddo...", id);
+    console.log("Conectado...", id);
   });
 };
 
-//LOGIN SIMULADO DE UN VISITANTE AL SITE
+// LOGIN SIMULADO DE UN VISITANTE AL SITE
 export const sendUser = (socket, io) => (visitor) => {
   let newVisitor = new Visitor({
     name: visitor.name,
@@ -21,23 +21,24 @@ export const sendUser = (socket, io) => (visitor) => {
       throw err;
     }
 
-    //CREAMOS LA SALA DE CHAT PARA ESTE USUARIO
-
-    let newConvesation = new Conversation({
+    // Crear la sala de chat para este usuario
+    let newConversation = new Conversation({
       roomid: visitor.roomid,
       message: "",
       autor: newVisitor._id,
     });
 
     socket.join(visitor.roomid, () => {
-      console.log("USUARIO CONECTADO A LA SALA ", visitor.roomid);
+      console.log("Usuario conectado a la sala ", visitor.roomid);
     });
+
     returnAllDatabase(io, true);
-    newConvesation.save((err) => {
+
+    newConversation.save((err) => {
       if (err) {
         throw err;
       }
-      console.log("NUEVO USUARIO!!!!");
+      console.log("Nuevo usuario!!!!");
 
       getMessageLogin(visitor.roomid, socket, io, null);
       notNotification(visitor.roomid, io);
@@ -45,15 +46,14 @@ export const sendUser = (socket, io) => (visitor) => {
   });
 };
 
+// Recuperar todos los mensajes de la sala de chat
 async function getMessages(roomid, io) {
-  //recuperamos todos los messages on chat room
   let messages = await Conversation.find({ roomid: roomid }).populate("autor");
-  //setTimeout(() => {
   io.sockets.in(roomid).emit("chat:messages", { messages: messages });
-  console.log("LISTADO DE MENSAJES...");
-  //},2000);
+  console.log("Listado de mensajes...");
 }
 
+// Obtener mensaje de inicio de sesión
 async function getMessageLogin(roomid, socket, io, mode) {
   let messages = await Conversation.find({ roomid: roomid }).populate("autor");
 
@@ -62,31 +62,25 @@ async function getMessageLogin(roomid, socket, io, mode) {
   }
 
   if (mode === "cliente") {
-    //socket.broadcast.to(message.roomid).emit('chat:new:message:cliente', newMessage);
     io.sockets.in(roomid).emit("chat:send:message:cliente", { roomid: roomid });
-
-    console.log("NUEVO MENSAJE ENVIADO AL CLIENTE...");
+    console.log("Nuevo mensaje enviado al cliente...");
   } else if (mode === "admin") {
-    //socket.broadcast.to(message.roomid).emit('chat:new:message:admin', newMessage);
     io.sockets.in(roomid).emit("chat:send:message:admin", { roomid: roomid });
-    console.log("NUEVO MENSAJE ENVIADO POR EL ADMIN...");
+    console.log("Nuevo mensaje enviado por el admin...");
   }
 }
 
+// Enviar mensaje
 export const sendMessage = (socket, io) => (message) => {
-  //NOTIFICACION PARA EMISOR DEL MENSAJE...
   getMessageLogin(message.roomid, socket, io, message.send);
-
-  //SALVAR MENSAJE Y NOTIFICAR AL RESECTOR DEL MENSAJE...
   newMessageToDB(message, socket, io);
 };
 
+// Enviar mensaje del propietario
 export const sendMessageOwner = (socket, io) => (data) => {
- const eventId = "new:message";
+  const eventId = "new:message";
   Visitor.findOne(
-    {
-      roomid: data.roomid,
-    },
+    { roomid: data.roomid },
     (err, person) => {
       person.status = false;
       person.messages.push({
@@ -98,97 +92,74 @@ export const sendMessageOwner = (socket, io) => (data) => {
         isUser: false,
       });
       person.save();
-      // io.sockets.to(data.roomid).emit('output', person, eventId)
       outputRoom(person.roomid, io, person);
     }
   );
   returnAllDatabase(socket, io, false);
 };
 
-export const uploadimage = (socket) => (data) => {
-  // let roomid = data.roomid;
-
+// Subir imagen de avatar
+export const uploadImage = (socket) => (data) => {
   socket.broadcast
     .to(data.roomid)
     .emit("chat:new:changer", { color: "", roomid: data.roomid });
-  console.log("AVATAR UPDATE FOR USER...");
+
   Visitor.findOneAndUpdate(
     { _id: data.id },
     { avatar: data.url, avatarStatus: true },
     { upsert: true },
-    function (err, doc) {
-      console.log(doc);
-      if (err) {
-        throw err;
-      }
-      //getMessages(roomid ,  io );
-      //setTimeout(() => {
+    (err, doc) => {
+      if (err) throw err;
       socket.broadcast
         .to(doc.roomid)
         .emit("chat:new:changer", { color: "", roomid: doc.roomid });
-      console.log("AVATAR UPDATE FOR USER...");
-
-      //},1000);
     }
   );
 };
 
+// Cambiar el estado del avatar
 export const avatarStatus = (socket, io) => (data) => {
   socket.broadcast
     .to(data.roomid)
     .emit("chat:new:changer", { color: "", roomid: data.roomid });
-  console.log("AVATAR UPDATE2 FOR USER...");
+
   Visitor.findOneAndUpdate(
     { _id: data.id },
     { avatarStatus: data.status },
     { upsert: true },
-    function (err, doc) {
-      if (err) {
-        throw err;
-      }
-      // setTimeout(() => {
-
-      //},1000);
+    (err, doc) => {
+      if (err) throw err;
     }
   );
 };
 
+// Cambiar el color del texto
 export const changeColor = (socket) => (data) => {
   socket.broadcast
     .to(data.roomid)
     .emit("chat:new:changer", { color: data.color, roomid: data.roomid });
-  console.log("COLOR UPDATE FOR USER...");
 
   Conversation.updateMany(
     { roomid: data.roomid },
     { textColor: data.color },
-    function (err, doc) {
-      if (err) {
-        throw err;
-      }
+    (err, doc) => {
+      if (err) throw err;
     }
   );
-
-  // setTimeout(() => {
-
-  // },1000);
 };
 
-export const updataInfoVisitor = (io) => (data) => {
+// Actualizar la información del visitante
+export const updateInfoVisitor = (io) => (data) => {
   Visitor.findOneAndUpdate(
     { _id: data },
     { status: false, statusMessage: false },
     { upsert: false },
-    function (err, doc) {
-      if (err) {
-        throw err;
-      }
-      console.log("UPDATE DATA STATUS , STATUSMESSAGE...");
+    (err, doc) => {
+      if (err) throw err;
       returnAllDatabase(io, false);
     }
   );
 };
-
 export const isTyping = (socket) => (data) => {
   // console.log('typing on')
   socket.broadcast.to(data.roomid).emit("isTyping", data);
@@ -251,7 +222,7 @@ async function outputToRoom(roomid, io) {
 
 async function newMessageToDB(message, socket, io) {
   try {
-   const newMessage = new Conversation({
+    const newMessage = new Conversation({
       roomid: message.roomid,
       message: message.message,
       autor: message.autor,
@@ -312,7 +283,7 @@ export const outputRoom = (roomid, io, person) => {
 //ELIMINAR DATA DE VISITANTES
 
 export const deleteDataToDataBase = (socket, io) => (data) => {
-     const { _id, roomid } = data;
+  const { _id, roomid } = data;
 
   socket.leave(roomid);
 
@@ -372,24 +343,3 @@ export const getAllMessages = (io) => (roomid) => {
   getMessages(roomid, io);
 };
 
-module.exports = {
-  join,
-  init,
-  exit,
-  sendMessage,
-  sendMessageOwner,
-  uploadimage,
-  avatarStatus,
-  changeColor,
-  sendUser,
-  sendOwner,
-  visitorSelect,
-  bellNotification,
-  getDataOnCache,
-  deleteDataToDataBase,
-  isTyping,
-  stopTyping,
-  ownerMode,
-  getAllMessages,
-  updataInfoVisitor,
-};
