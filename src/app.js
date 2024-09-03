@@ -5,6 +5,8 @@ import dotenv from "dotenv";
 import http from 'http';
 import { Server as SocketIOServer } from 'socket.io';
 import chatPublicWhiteBoard from "./socketConnections/chatPublicWhiteBoard.js";
+import chatConnections from "./socketConnections/newHomeChatConnections.js"
+
 
 // Carga las variables de entorno desde el archivo .env
 dotenv.config();
@@ -20,6 +22,7 @@ const io = new SocketIOServer(server, {
 
 // Configura los eventos de Socket.IO
 chatPublicWhiteBoard(io);
+chatConnections(io);
 
 // Crea la aplicación Express
 const app = express();
